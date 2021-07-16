@@ -1,0 +1,25 @@
+{
+	"user": "Allerek",
+	"repo": "TheSecretProject",
+	"entry": "gamemodes\\memories.pwn",
+	"output": "gamemodes\\memories.amx",
+	"dependencies": [
+		"sampctl/samp-stdlib",
+		"pawn-lang/YSI-Includes",
+		"pBlueG/SA-MP-MySQL",
+		"katursis/Pawn.Regex",
+		"Sreyas-Sreelal/samp-bcrypt",
+		"pawn-lang/sa-mp-fixes",
+		"Southclaws/pawn-json"
+	],
+	"local": true,
+	"runtime": {
+		"version": "0.3.7",
+		"mode": "server",
+		"rcon_password": "password",
+		"port": 7777,
+		"hostname": "SA-MP Server",
+		"maxplayers": 50,
+		"language": ""
+	}
+}
