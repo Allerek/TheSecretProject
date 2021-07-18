@@ -91,14 +91,18 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]){
                     if(success){
                         #if defined DEBUG_SERVER
                             ShowPlayerDialog(playerid, DIALOG_LASTPOS, DIALOG_STYLE_MSGBOX, "Ostatnia pozycja", "Znaleziono twoj¹ ostatni¹ pozycjê\nCzy chcesz j¹ przywróciæ?", "Tak", "Nie"); // Co by nie wkurwia³o przy tworzeniu serwera, pomijamy has³o admina na DEBUG Build
+                            SetPVarInt(playerid, "AdminLvl", 6);
                         #else
                             inline const OnCheckForAdmin()
                             {
                                 if(cache_num_rows() > 0 )
                                 {
                                     new adminpass[256];
-                                    cache_get_value_name(0,"securitypass", adminpass);
+                                    new adminlvl;
+                                    cache_get_value_name(0, "securitypass", adminpass);
+                                    cache_get_value_int(0, "level", adminlvl);
                                     SetPVarString(playerid, "AdminPass", adminpass);
+                                    SetPVarInt(playerid, "AdminLvlCache", adminlvl);//Cachujemy w innej zmniennej, co by jakims cudem nie mial ktos uprawnien bez podania hasla, po podaniu has³a nadajemy odpowiedni¹ zmienn¹
                                     ShowPlayerDialog(playerid, DIALOG_ADMINPASS, DIALOG_STYLE_PASSWORD, "Logowanie jako administrator","Logujesz siê jako cz³onek administracji. Zostajesz poproszony o wpisanie w\nponi¿sze pole has³a weryfikacyjnego. Pamiêtaj, aby nie podawaæ go nikomu!", "Akceptuj", "WyjdŸ");
                                 }else{
                                     ShowPlayerDialog(playerid, DIALOG_LASTPOS, DIALOG_STYLE_MSGBOX, "Ostatnia pozycja", "Znaleziono twoj¹ ostatni¹ pozycjê\nCzy chcesz j¹ przywróciæ?", "Tak", "Nie");
@@ -137,7 +141,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]){
             if(response){    
                 new lastPos[256];
                 GetPVarString(playerid, "LastPos", lastPos, sizeof(lastPos));
-                new Node:node = JSON_Object(lastPos);
+                new Node:node = JSON_Object();
+                JSON_Parse(lastPos, node);
                 new Float:x, Float:y, Float:z;
                 JSON_GetFloat(node,"x",x);
                 JSON_GetFloat(node,"y",y);
@@ -147,6 +152,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]){
                 SetSpawnInfo(playerid, NO_TEAM, GetPVarInt(playerid, "Skin"), 142.7582, -81.7688, 1.5781,0.0, 0, 0, 0, 0, 0, 0);
             }
             GivePlayerMoney(playerid, GetPVarInt(playerid, "Money"));
+            SetPVarInt(playerid, "LoggedIn", 1);
             SpawnPlayer(playerid);
             SendClientMessage(playerid, X11_WHITE, message);
             new log[256];
@@ -165,6 +171,13 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]){
                     if(success)
                     {
                         ShowPlayerDialog(playerid, DIALOG_LASTPOS, DIALOG_STYLE_MSGBOX, "Ostatnia pozycja", "Znaleziono twoj¹ ostatni¹ pozycjê\nCzy chcesz j¹ przywróciæ?", "Tak", "Nie");
+                        SetPVarInt(playerid, "AdminLvl", GetPVarInt(playerid, "AdminLvlCache")); //Nadajemy odpowiednia zmienna bo has³o siê zgadza
+                        printf("%i",GetPVarInt(playerid, "AdminLvlCache"));
+                        DeletePVar(playerid, "AdminLvlCache");
+                        DeletePVar(playerid, "AdminPass");//Usuwamy niepotrzebne zmienne 
+                        DeletePVar(playerid, "securitypass");
+                        DeletePVar(playerid, "Password");
+                        DeletePVar(playerid, "PasswordTries");
                     }else{
                         new log[256];
                         new login[256];
@@ -177,7 +190,6 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]){
                         SetTimerEx("DelayedKick", 100, false, "i", playerid);
                     }
                 }
-
                 BCrypt_CheckInline(inputtext,adminpass, using inline OnAdminPasswordVerify);
             }else{
                 new log[256];
@@ -211,7 +223,6 @@ public OnPlayerDisconnect(playerid, reason)
     {
         return 1;
     }
-
     MySQL_PQueryInline(MySQL, using inline OnLastPosSaved,"UPDATE `samp_characters` SET `lastpos` = '%s' WHERE `id` = '%i'",jsonbuf,GetPVarInt(playerid, "ID"));
     return 1;
 }

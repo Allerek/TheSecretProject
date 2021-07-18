@@ -11,6 +11,7 @@
 #include <YSI_Extra\y_inline_mysql>
 #include <YSI_Visual\y_commands>
 #include <json>
+#include <sscanf2>
 
 
 //Lista kolorów https://github.com/YSI-Server/y_colours/blob/dev/YSI-Server/y_colours/y_colours_x11def.inc
