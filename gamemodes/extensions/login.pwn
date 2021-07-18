@@ -1,5 +1,6 @@
 #define DIALOG_LOGIN 1
 #define DIALOG_LASTPOS 2
+#define DIALOG_ADMINPASS 3
 
 public OnPlayerConnect(playerid){
     if(!IsRpNickname(ReturnPlayerName(playerid)))
@@ -88,7 +89,23 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]){
                 inline const OnPasswordVerify(bool:success)
                 {
                     if(success){
-                        ShowPlayerDialog(playerid, DIALOG_LASTPOS, DIALOG_STYLE_MSGBOX, "Ostatnia pozycja", "Znaleziono twoj¹ ostatni¹ pozycjê\nCzy chcesz j¹ przywróciæ?", "Tak", "Nie");
+                        #if defined DEBUG_SERVER
+                            ShowPlayerDialog(playerid, DIALOG_LASTPOS, DIALOG_STYLE_MSGBOX, "Ostatnia pozycja", "Znaleziono twoj¹ ostatni¹ pozycjê\nCzy chcesz j¹ przywróciæ?", "Tak", "Nie"); // Co by nie wkurwia³o przy tworzeniu serwera, pomijamy has³o admina na DEBUG Build
+                        #else
+                            inline const OnCheckForAdmin()
+                            {
+                                if(cache_num_rows() > 0 )
+                                {
+                                    new adminpass[256];
+                                    cache_get_value_name(0,"securitypass", adminpass);
+                                    SetPVarString(playerid, "AdminPass", adminpass);
+                                    ShowPlayerDialog(playerid, DIALOG_ADMINPASS, DIALOG_STYLE_PASSWORD, "Logowanie jako administrator","Logujesz siê jako cz³onek administracji. Zostajesz poproszony o wpisanie w\nponi¿sze pole has³a weryfikacyjnego. Pamiêtaj, aby nie podawaæ go nikomu!", "Akceptuj", "WyjdŸ");
+                                }else{
+                                    ShowPlayerDialog(playerid, DIALOG_LASTPOS, DIALOG_STYLE_MSGBOX, "Ostatnia pozycja", "Znaleziono twoj¹ ostatni¹ pozycjê\nCzy chcesz j¹ przywróciæ?", "Tak", "Nie");
+                                }
+                            }
+                            MySQL_PQueryInline(MySQL, using inline OnCheckForAdmin,"SELECT * FROM `samp_admins` WHERE `charid` = '%i' AND `active` = '1' ",GetPVarInt(playerid,"ID"));
+                        #endif
                     }else{
                         SetPVarInt(playerid, "PasswordTries", GetPVarInt(playerid, "PasswordTries")+1);
                         if(GetPVarInt(playerid, "PasswordTries") == 3){
@@ -116,6 +133,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]){
             ClearPlayerChat(playerid);
             new message[128];
             format(message, sizeof(message), "Witaj na serwerze %s, %s!", SERVER_NAME, ReturnPlayerName(playerid));
+            TogglePlayerSpectating(playerid,false);
             if(response){    
                 new lastPos[256];
                 GetPVarString(playerid, "LastPos", lastPos, sizeof(lastPos));
@@ -139,6 +157,40 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]){
             format(log, sizeof(log), "[LOG-LOGIN] Gracz %s zalogowa³ siê na postaæ %s || IP: %s", login, ReturnPlayerName(playerid), plrIP);
             print(log);
         }
+        case DIALOG_ADMINPASS:{
+            if(response){
+                new adminpass[256];
+                GetPVarString(playerid, "AdminPass", adminpass, sizeof(adminpass));
+                inline const OnAdminPasswordVerify(bool:success){
+                    if(success)
+                    {
+                        ShowPlayerDialog(playerid, DIALOG_LASTPOS, DIALOG_STYLE_MSGBOX, "Ostatnia pozycja", "Znaleziono twoj¹ ostatni¹ pozycjê\nCzy chcesz j¹ przywróciæ?", "Tak", "Nie");
+                    }else{
+                        new log[256];
+                        new login[256];
+                        new plrIP[16];
+                        GetPlayerIp(playerid, plrIP, sizeof(plrIP));
+                        GetPVarString(playerid, "Login", login, sizeof(login));
+                        format(log, sizeof(log), "[LOG-ALOGIN] NIEUDANE LOGOWANIE ADMINISTRATORA %s NA POSTAÆ %s || IP: %s", login, ReturnPlayerName(playerid), plrIP);
+                        print(log); 
+                        SendPlayerError(playerid, "Nieprawid³owe has³o, zosta³eœ roz³¹czony, administracja dosta³a informacje o nieudanym logowaniu. Zapraszamy ponownie!");
+                        SetTimerEx("DelayedKick", 100, false, "i", playerid);
+                    }
+                }
+
+                BCrypt_CheckInline(inputtext,adminpass, using inline OnAdminPasswordVerify);
+            }else{
+                new log[256];
+                new login[256];
+                new plrIP[16];
+                GetPlayerIp(playerid, plrIP, sizeof(plrIP));
+                GetPVarString(playerid, "Login", login, sizeof(login));
+                format(log, sizeof(log), "[LOG-ALOGIN] NIEUDANE LOGOWANIE ADMINISTRATORA %s NA POSTAÆ %s || IP: %s", login, ReturnPlayerName(playerid), plrIP);
+                print(log); 
+                SendPlayerError(playerid, "Wyszed³eœ z serwera, zosta³eœ roz³¹czony. Zapraszamy ponownie!");
+                SetTimerEx("DelayedKick", 100, false, "i", playerid);
+            }
+        }
     }
     return 1;
 }
@@ -161,5 +213,13 @@ public OnPlayerDisconnect(playerid, reason)
     }
 
     MySQL_PQueryInline(MySQL, using inline OnLastPosSaved,"UPDATE `samp_characters` SET `lastpos` = '%s' WHERE `id` = '%i'",jsonbuf,GetPVarInt(playerid, "ID"));
+    return 1;
+}
+
+public OnPlayerRequestClass(playerid, classid)
+{
+    SetSpawnInfo(playerid, NO_TEAM, 0, 0, 0, 0, 0.0, 0, 0, 0, 0, 0, 0);
+
+    TogglePlayerSpectating(playerid, true);
     return 1;
 }

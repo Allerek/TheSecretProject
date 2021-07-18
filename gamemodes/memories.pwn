@@ -12,6 +12,7 @@
 #include <YSI_Visual\y_commands>
 #include <json>
 
+
 //Lista kolorów https://github.com/YSI-Server/y_colours/blob/dev/YSI-Server/y_colours/y_colours_x11def.inc
 #include <YSI_Server\y_colours>
 
